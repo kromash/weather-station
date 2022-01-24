@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+.metadata/
+
+weather-station-G431/Debug/
