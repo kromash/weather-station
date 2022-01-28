@@ -31,7 +31,7 @@ uint8_t dtvalue = 0;
 uint8_t appStart = 0;
 uint32_t ELBaseline_period = 0;
 uint32_t ALBaseline_period = 0;
-uint8_t Mode_CCS811 = 4;
+uint8_t Mode_CCS811 = 1;
 float relativeHumidity = 65.0, temperature = 25.0;
 
 /**
@@ -355,8 +355,8 @@ void restore_Baseline() {
 //	while (HAL_I2C_GetState(&hi2cxc) != HAL_I2C_STATE_READY) {
 //	}
 	uint8_t res_bs[2];
-	res_bs[0] = 0xF6;
-	res_bs[1] = 0xB6;
+	res_bs[0] = 0xA1;
+	res_bs[1] = 0xBB;
 	HAL_I2C_Mem_Write(&hi2cxc, CCS811_ADDWR, CSS811_BASELINE,
 	I2C_MEMADD_SIZE_8BIT, res_bs, 2, 300);
 	while (HAL_I2C_GetState(&hi2cxc) != HAL_I2C_STATE_READY) {

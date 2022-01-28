@@ -18,6 +18,7 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -26,6 +27,11 @@
 #include "u8g2/u8g2.h"
 #include "bme280/bme280.h"
 #include "ccs811/DFRobot_CCS811.h"
+#include <stdio.h>
+#include <cstdlib>
+#include <cstring>
+
+#include "weather_station/WeatherStation.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -179,9 +185,10 @@ void user_delay_ms(uint32_t period) {
 
 int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
 	int8_t *buf;
-	buf = malloc(len + 1);
+	// TODO new?
+	buf = (int8_t *)malloc(len + 1);
 	buf[0] = reg_addr;
-	memcpy(buf + 1, data, len);
+	std::memcpy(buf + 1, data, len);
 
 	if (HAL_I2C_Master_Transmit(&hi2c1, (id << 1), (uint8_t*) buf, len + 1,
 	HAL_MAX_DELAY) != HAL_OK)
@@ -241,7 +248,7 @@ int main(void) {
 	HAL_UART_Transmit(&huart2, (uint8_t*) &uart2Data, sizeof(uart2Data),
 			0xFFFF);
 
-	printf("\r\n");
+	//printf("\r\n");
 
 	printf("Scanning I2C bus:\r\n");
 	HAL_StatusTypeDef result;
@@ -284,14 +291,6 @@ int main(void) {
 	PVD_Config();
 
 	if (__HAL_PWR_GET_FLAG(PWR_FLAG_SB) == RESET) {
-//		/* Blink LED_OK (Green) twice at startup */
-//		BSP_LED_On(LED_OK);
-//		HAL_Delay(100);
-//		BSP_LED_Off(LED_OK);
-//		HAL_Delay(100);
-//		BSP_LED_On(LED_OK);
-//		HAL_Delay(100);
-//		BSP_LED_Off(LED_OK);
 
 		/* System reset comes from a power-on reset: Forced Erase */
 		/* Initialize EEPROM emulation driver (mandatory) */
@@ -330,7 +329,7 @@ int main(void) {
 	number_of_starts += 1;
 
 	ee_status = EE_WriteVariable32bits(1, number_of_starts);
-	ee_status |= EE_ReadVariable32bits(1, &check);
+	ee_status = static_cast<EE_Status>(EE_ReadVariable32bits(1, &check));
 	if (number_of_starts != check) {
 		Error_Handler();
 	}
@@ -338,7 +337,7 @@ int main(void) {
 	/* Start cleanup IT mode, if cleanup is needed */
 	if ((ee_status & EE_STATUSMASK_CLEANUP ) == EE_STATUSMASK_CLEANUP) {
 		ErasingOnGoing = 1;
-		ee_status |= EE_CleanUp_IT();
+		ee_status = static_cast<EE_Status>(ee_status | EE_CleanUp_IT());
 	}
 	if ((ee_status & EE_STATUSMASK_ERROR ) == EE_STATUSMASK_ERROR) {
 		Error_Handler();
@@ -374,15 +373,22 @@ int main(void) {
 	rslt = bme280_set_sensor_settings(
 			BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL
 					| BME280_FILTER_SEL, &dev);
+	rslt = bme280_set_sensor_mode(BME280_NORMAL_MODE, &dev); //BME280_FORCED_MODE
+			dev.delay_ms(40);
 	/**************/
 
 	/****CCS811****/
 	Init_I2C_CCS811(hi2c1);
 	configureCCS811();
-	//restore_Baseline();
+	//restore_Baseline(); // TODO
 	//softRest();
 
 	/**************/
+
+	/*WTHSTATION*/
+	Display display = Display(&hi2c1, 128, 64);
+	WeatherStation weather_station = WeatherStation(&hi2c1, display);
+	//weather_station.run();
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -393,38 +399,35 @@ int main(void) {
 	uint8_t pos_y = 13;
 	uint8_t dir_x = 1;
 	uint8_t dir_y = 1;
+
+
 	while (1) {
-//		while (dataAvailable() == 0) {
-//		}
 		readAlgorithmResults();
 		unsigned int co2 = getCO2();
 
 		unsigned int baseline = getBaseline();
 
-		rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
-		dev.delay_ms(40);
+
 		rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
 		if (rslt == BME280_OK) {
 			temperature = comp_data.temperature / 100.0; /* °C  */
+			temperature -= 4; // TODO compensate
 			humidity = comp_data.humidity / 1024.0; /* %   */
 			pressure = comp_data.pressure / 10000.0; /* hPa */
 
-			//memset(line1, 0, sizeof(line1));
-			//memset(line1, 0, sizeof(line2));
-//			sprintf(line1, "HUMID: %03.1f ", humidity);
-//			sprintf(line2, "HUMID: %03.1f", temperature);
 
+			setEnvironmentalData(humidity, temperature);
 		}
 
-		HAL_Delay(10);
+		HAL_Delay(500);
 		u8g2_ClearBuffer(&u8g2);
 		//u8g2_ClearDisplay(&u8g2);
 		u8g2_SetFont(&u8g2, u8g2_font_fur11_tf);
-		sprintf(tmp, "%u %u, %x", number_of_starts, co2, baseline);
+		snprintf(tmp, 50, "%u %u, %x", number_of_starts, co2, baseline);
 		u8g2_DrawStr(&u8g2, 0, 20, tmp);
-		sprintf(tmp, "H: %03.1f%%", humidity);
+		snprintf(tmp, 50, "H: %03.1f%%", humidity);
 		u8g2_DrawStr(&u8g2, 0, 40, tmp);
-		sprintf(tmp, "T: %03.1f", temperature);
+		snprintf(tmp, 50, "T: %03.1f", temperature);
 		u8g2_DrawStr(&u8g2, 0, 60, tmp);
 		//u8g2_SetDrawColor(&u8g2, 0);
 		u8g2_DrawBox(&u8g2, pos_x, pos_y, 5, 5);
