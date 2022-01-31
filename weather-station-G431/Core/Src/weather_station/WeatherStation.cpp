@@ -6,11 +6,11 @@
  */
 
 #include "WeatherStation.h"
-#include "../bme280/bme280.h"
 
 namespace I2C {
 I2C_HandleTypeDef hi2c1;
-int8_t user_i2c_read(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+int8_t user_i2c_read(uint8_t id, uint8_t reg_addr, uint8_t *data,
+		uint16_t len) {
 	if (HAL_I2C_Master_Transmit(&hi2c1, (id << 1), &reg_addr, 1, 10) != HAL_OK)
 		return -1;
 	if (HAL_I2C_Master_Receive(&hi2c1, (id << 1) | 0x01, data, len, 10)
@@ -24,10 +24,11 @@ void user_delay_ms(uint32_t period) {
 	HAL_Delay(period);
 }
 
-int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data,
+		uint16_t len) {
 	int8_t *buf;
 	// TODO new?
-	buf = (int8_t *)malloc(len + 1);
+	buf = (int8_t*) malloc(len + 1);
 	buf[0] = reg_addr;
 	std::memcpy(buf + 1, data, len);
 
@@ -42,6 +43,7 @@ int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len)
 
 WeatherStation::WeatherStation(I2C_HandleTypeDef *i2c, Display display) :
 		i2c(i2c), display(display) {
+	I2C::hi2c1 = *i2c;
 	init_bme280();
 	init_ccs811();
 }
@@ -50,8 +52,7 @@ WeatherStation::~WeatherStation() {
 	// TODO Auto-generated destructor stub
 }
 void WeatherStation::init_bme280() {
-	struct bme280_dev dev;
-	struct bme280_data comp_data;
+
 	int8_t rslt;
 	dev.dev_id = BME280_I2C_ADDR_PRIM;
 	dev.intf = BME280_I2C_INTF;
@@ -73,16 +74,36 @@ void WeatherStation::init_bme280() {
 }
 
 void WeatherStation::init_ccs811() {
-
+	Init_I2C_CCS811(I2C::hi2c1);
+	configureCCS811();
+	restore_Baseline();
 }
 
 void WeatherStation::run() {
+	WeatherData weather_data;
+	int8_t rslt;
+	restore_Baseline();
 	while (1) {
-		HAL_Delay(1);
-		display.update_data();
+
+		rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
+		if (rslt == BME280_OK) {
+			weather_data.temperature = comp_data.temperature / 100.0; /* °C  */
+			//weather_data.temperature -= 4; // TODO compensate
+			weather_data.humidity = comp_data.humidity / 1024.0; /* %   */
+			weather_data.pressure = comp_data.pressure / 10000.0; /* hPa */
+
+			setEnvironmentalData(weather_data.humidity, weather_data.temperature);
+		}
+		readAlgorithmResults();
+		weather_data.co2 = getCO2();
+
+		weather_data.baseline = getBaseline();
+
+		//weather_data.temperature=30;
+		display.update_data(weather_data);
 		display.update_display();
+		HAL_Delay(1000);
+
 	}
 }
-
-
 

@@ -12,8 +12,10 @@
 #include "devices/BME280.h"
 #include "devices/CCS811.h"
 #include "devices/Display.h"
+#include "../bme280/bme280.h"
 #include <cstdlib> //malloc
 #include <cstring> //memcpy
+#include "../ccs811/DFRobot_CCS811.h"
 
 namespace I2C {
 extern I2C_HandleTypeDef hi2c1;
@@ -23,7 +25,8 @@ void user_delay_ms(uint32_t period);
 }
 class WeatherStation {
 private:
-	float temperature, humidity, pressure;
+	struct bme280_dev dev;
+	struct bme280_data comp_data;
 
 	I2C_HandleTypeDef* i2c;
 	Display display;

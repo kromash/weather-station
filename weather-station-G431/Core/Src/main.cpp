@@ -378,8 +378,8 @@ int main(void) {
 	/**************/
 
 	/****CCS811****/
-	Init_I2C_CCS811(hi2c1);
-	configureCCS811();
+	//Init_I2C_CCS811(hi2c1);
+	//configureCCS811();
 	//restore_Baseline(); // TODO
 	//softRest();
 
@@ -388,7 +388,7 @@ int main(void) {
 	/*WTHSTATION*/
 	Display display = Display(&hi2c1, 128, 64);
 	WeatherStation weather_station = WeatherStation(&hi2c1, display);
-	//weather_station.run();
+	weather_station.run();
 	/* USER CODE END 2 */
 
 	/* Infinite loop */

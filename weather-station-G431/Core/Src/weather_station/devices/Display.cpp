@@ -128,11 +128,22 @@ Display::Display(I2C_HandleTypeDef *hi2c, int width, int heigth) :point_x(1), po
 	u8g2_SendBuffer(&u8g2);
 	u8g2_SetFontDirection(&u8g2, 0);
 
+	u8g2_SetFont(&u8g2, u8g2_font_fur11_tf);
+
 }
 
 void Display::update_display() {
 	u8g2_ClearBuffer(&u8g2);
-	u8g2_DrawBox(&u8g2, point_x, point_y, point_size, point_size);
+
+	//TODO u8g2_DrawBox(&u8g2, point_x, point_y, point_size, point_size);
+	char tmp[50];
+	snprintf(tmp, 50, "%u, %x", weather_data.co2, weather_data.baseline);
+	u8g2_DrawStr(&u8g2, 0, 20, tmp);
+	snprintf(tmp, 50, "H: %03.1f%%", weather_data.humidity);
+	u8g2_DrawStr(&u8g2, 0, 40, tmp);
+	snprintf(tmp, 50, "T: %03.1f P: %03.1f hPA", weather_data.temperature, weather_data.pressure);
+	u8g2_DrawStr(&u8g2, 0, 60, tmp);
+
 
 	u8g2_SendBuffer(&u8g2);
 
@@ -146,8 +157,8 @@ void Display::update_display() {
 	}
 }
 
-void Display::update_data() {
-
+void Display::update_data(WeatherData _weather_data) {
+	weather_data = _weather_data;
 }
 
 
