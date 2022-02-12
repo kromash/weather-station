@@ -23,13 +23,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "eeprom_emul.h"
-#include "u8g2/u8g2.h"
-#include "bme280/bme280.h"
-#include "ccs811/DFRobot_CCS811.h"
-#include <stdio.h>
-#include <cstdlib>
-#include <cstring>
 
 #include "weather_station/WeatherStation.h"
 /* USER CODE END Includes */
@@ -51,7 +44,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-DMA_HandleTypeDef hdma_i2c1_tx;
+DMA_HandleTypeDef hdma_i2c1_tx; // TODO remove?
 
 UART_HandleTypeDef huart2;
 
@@ -67,7 +60,9 @@ static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void PVD_Config(void);
 /* USER CODE BEGIN PFP */
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 void send_char(char c) {
 	HAL_UART_Transmit(&huart2, (uint8_t*) &c, 1, 1000);
 }
@@ -76,127 +71,10 @@ int __io_putchar(int ch) {
 	send_char(ch);
 	return ch;
 }
-
-#define DEVICE_ADDRESS 0x3C
-#define TX_TIMEOUT		100
-
-uint8_t u8x8_stm32_gpio_and_delay(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
-		void *arg_ptr) {
-	volatile uint32_t i;
-	/* STM32 supports HW SPI, Remove unused cases like U8X8_MSG_DELAY_XXX & U8X8_MSG_GPIO_XXX */
-	switch (msg) {
-
-	case U8X8_MSG_DELAY_10MICRO:
-		for (i = 0; i < arg_int * 1000; i++) {
-			__NOP();
-		}
-
-		break;
-		//Function which delays 100ns
-	case U8X8_MSG_DELAY_100NANO:
-		for (i = 0; i < arg_int * 10; i++) {
-			__NOP();
-		}
-		break;
-		//Function to define the logic level of the clockline
-
-	case U8X8_MSG_DELAY_I2C:
-		//i = 0;
-		for (i = 0; i < arg_int * 500; i++)
-			;
-		break;
-	case U8X8_MSG_GPIO_AND_DELAY_INIT:
-		/* Insert codes for initialization */
-		break;
-	case U8X8_MSG_DELAY_MILLI:
-		/* ms Delay */
-		HAL_Delay(arg_int);
-		break;
-	case U8X8_MSG_GPIO_CS:
-		/* Insert codes for SS pin control */
-		//HAL_GPIO_WritePin(OLED_CS_GPIO_Port, OLED_CS_Pin, arg_int);
-		break;
-	case U8X8_MSG_GPIO_DC:
-		/* Insert codes for DC pin control */
-		//HAL_GPIO_WritePin(OLED_DC_GPIO_Port, OLED_DC_Pin, arg_int);
-		break;
-	case U8X8_MSG_GPIO_RESET:
-		/* Insert codes for RST pin control */
-		//HAL_GPIO_WritePin(OLED_RST_GPIO_Port, OLED_RST_Pin, arg_int);
-		break;
-	default:
-		return 0;
-	}
-	return 1;
+#ifdef __cplusplus
 }
+#endif
 
-uint8_t u8x8_byte_stm32_hw_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int,
-		void *arg_ptr) {
-	/* u8g2/u8x8 will never send more than 32 bytes between START_TRANSFER and END_TRANSFER */
-	static uint8_t buffer[32];
-	static uint8_t buf_idx;
-	uint8_t *data;
-
-	switch (msg) {
-	case U8X8_MSG_BYTE_SEND:
-		data = (uint8_t*) arg_ptr;
-		while (arg_int > 0) {
-			buffer[buf_idx++] = *data;
-			data++;
-			arg_int--;
-		}
-		break;
-	case U8X8_MSG_BYTE_INIT:
-		/* add your custom code to init i2c subsystem */
-		break;
-	case U8X8_MSG_BYTE_SET_DC:
-		break;
-	case U8X8_MSG_BYTE_START_TRANSFER:
-		buf_idx = 0;
-		break;
-	case U8X8_MSG_BYTE_END_TRANSFER:
-		if (HAL_I2C_Master_Transmit(&hi2c1, (DEVICE_ADDRESS << 1), buffer,
-				buf_idx, TX_TIMEOUT) != HAL_OK)
-			return 0;
-//		HAL_I2C_Master_Transmit_DMA(&hi2c1, (DEVICE_ADDRESS << 1), buffer, buf_idx);
-		//HAL_I2C_Mem_Write_DMA(&hi2c1, (DEVICE_ADDRESS << 1), 0x40, 1, &buffer[0], buf_idx);
-//		volatile uint32_t i;
-//		for (i = 1; i <= 100; i++);
-		break;
-	default:
-		return 0;
-	}
-	return 1;
-}
-
-int8_t user_i2c_read(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
-	if (HAL_I2C_Master_Transmit(&hi2c1, (id << 1), &reg_addr, 1, 10) != HAL_OK)
-		return -1;
-	if (HAL_I2C_Master_Receive(&hi2c1, (id << 1) | 0x01, data, len, 10)
-			!= HAL_OK)
-		return -1;
-
-	return 0;
-}
-
-void user_delay_ms(uint32_t period) {
-	HAL_Delay(period);
-}
-
-int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
-	int8_t *buf;
-	// TODO new?
-	buf = (int8_t *)malloc(len + 1);
-	buf[0] = reg_addr;
-	std::memcpy(buf + 1, data, len);
-
-	if (HAL_I2C_Master_Transmit(&hi2c1, (id << 1), (uint8_t*) buf, len + 1,
-	HAL_MAX_DELAY) != HAL_OK)
-		return -1;
-
-	free(buf);
-	return 0;
-}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -210,7 +88,6 @@ int8_t user_i2c_write(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len)
  */
 int main(void) {
 	/* USER CODE BEGIN 1 */
-	u8g2_t u8g2;
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -265,125 +142,75 @@ int main(void) {
 	}
 	printf("\r\n");
 
-	u8g2_Setup_sh1106_i2c_128x64_noname_f(&u8g2, U8G2_R2,
-			u8x8_byte_stm32_hw_i2c, u8x8_stm32_gpio_and_delay);
-
-	u8g2_InitDisplay(&u8g2); // send init sequence to the display, display is in sleep mode after this,
-	u8g2_SetPowerSave(&u8g2, 0); // wake up display
-	u8g2_SetDrawColor(&u8g2, 1);
-
-	u8g2_ClearBuffer(&u8g2);
-	u8g2_DrawLine(&u8g2, 0, 0, 100, 100);
-	u8g2_SendBuffer(&u8g2);
-	u8g2_SetFontDirection(&u8g2, 0);
-
 	/*********EEPROM*******/
-
-	EE_Status ee_status = EE_OK;
-
-	/* Enable and set FLASH Interrupt priority */
-	/* FLASH interrupt is used for the purpose of pages clean up under interrupt */
-//	HAL_NVIC_SetPriority(FLASH_IRQn, 0, 0);
-//	HAL_NVIC_EnableIRQ(FLASH_IRQn);
-	/* Unlock the Flash Program Erase controller */
-	HAL_FLASH_Unlock();
 
 	PVD_Config();
 
-	if (__HAL_PWR_GET_FLAG(PWR_FLAG_SB) == RESET) {
+//	EE_Status ee_status = EE_OK;
+//
+//	/* Enable and set FLASH Interrupt priority */
+//	/* FLASH interrupt is used for the purpose of pages clean up under interrupt */
+////	HAL_NVIC_SetPriority(FLASH_IRQn, 0, 0);
+////	HAL_NVIC_EnableIRQ(FLASH_IRQn);
+//	/* Unlock the Flash Program Erase controller */
+//	HAL_FLASH_Unlock();
+//
+//
+//	if (__HAL_PWR_GET_FLAG(PWR_FLAG_SB) == RESET) {
+//
+//		/* System reset comes from a power-on reset: Forced Erase */
+//		/* Initialize EEPROM emulation driver (mandatory) */
+//		ee_status = EE_Init(EE_FORCED_ERASE);
+//		if (ee_status != EE_OK) {
+//			Error_Handler();
+//		}
+//	} else {
+//		/* Clear the Standby flag */
+//		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB);
+//
+//		/* Check and Clear the Wakeup flag */
+//		if (__HAL_PWR_GET_FLAG(PWR_FLAG_WUF) != RESET) {
+//			__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF);
+//		}
+//
+//
+//		/* System reset comes from a STANDBY wakeup: Conditional Erase*/
+//		/* Initialize EEPROM emulation driver (mandatory) */
+//		ee_status = EE_Init(EE_CONDITIONAL_ERASE);
+//		if (ee_status != EE_OK) {
+//			Error_Handler();
+//		}
+//	}
+//
+//	uint32_t number_of_starts = 0;
+//	uint32_t check;
+//	__IO uint32_t ErasingOnGoing = 0;
+//
+//	ee_status = EE_ReadVariable32bits(1, &number_of_starts);
+//
+//	number_of_starts += 1;
+//
+//	ee_status = EE_WriteVariable32bits(1, number_of_starts);
+//	ee_status = static_cast<EE_Status>(EE_ReadVariable32bits(1, &check));
+//	if (number_of_starts != check) {
+//		Error_Handler();
+//	}
+//
+//	/* Start cleanup IT mode, if cleanup is needed */
+//	if ((ee_status & EE_STATUSMASK_CLEANUP ) == EE_STATUSMASK_CLEANUP) {
+//		ErasingOnGoing = 1;
+//		ee_status = static_cast<EE_Status>(ee_status | EE_CleanUp_IT());
+//	}
+//	if ((ee_status & EE_STATUSMASK_ERROR ) == EE_STATUSMASK_ERROR) {
+//		Error_Handler();
+//	}
+//
+//	while (ErasingOnGoing == 1) {
+//	}
+//
+//	HAL_FLASH_Lock();
 
-		/* System reset comes from a power-on reset: Forced Erase */
-		/* Initialize EEPROM emulation driver (mandatory) */
-		ee_status = EE_Init(EE_FORCED_ERASE);
-		if (ee_status != EE_OK) {
-			Error_Handler();
-		}
-	} else {
-		/* Clear the Standby flag */
-		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB);
-
-		/* Check and Clear the Wakeup flag */
-		if (__HAL_PWR_GET_FLAG(PWR_FLAG_WUF) != RESET) {
-			__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF);
-		}
-
-//		/* Blink LED_OK (Green) upon wakeup */
-//		BSP_LED_On(LED_OK);
-//		HAL_Delay(100);
-//		BSP_LED_Off(LED_OK);
-
-		/* System reset comes from a STANDBY wakeup: Conditional Erase*/
-		/* Initialize EEPROM emulation driver (mandatory) */
-		ee_status = EE_Init(EE_CONDITIONAL_ERASE);
-		if (ee_status != EE_OK) {
-			Error_Handler();
-		}
-	}
-
-	uint32_t number_of_starts = 0;
-	uint32_t check;
-	__IO uint32_t ErasingOnGoing = 0;
-
-	ee_status = EE_ReadVariable32bits(1, &number_of_starts);
-
-	number_of_starts += 1;
-
-	ee_status = EE_WriteVariable32bits(1, number_of_starts);
-	ee_status = static_cast<EE_Status>(EE_ReadVariable32bits(1, &check));
-	if (number_of_starts != check) {
-		Error_Handler();
-	}
-
-	/* Start cleanup IT mode, if cleanup is needed */
-	if ((ee_status & EE_STATUSMASK_CLEANUP ) == EE_STATUSMASK_CLEANUP) {
-		ErasingOnGoing = 1;
-		ee_status = static_cast<EE_Status>(ee_status | EE_CleanUp_IT());
-	}
-	if ((ee_status & EE_STATUSMASK_ERROR ) == EE_STATUSMASK_ERROR) {
-		Error_Handler();
-	}
-
-	while (ErasingOnGoing == 1) {
-	}
-
-	HAL_FLASH_Lock();
 	/**********************/
-
-	/****BME280****/
-
-	float temperature;
-	float humidity;
-	float pressure;
-
-	struct bme280_dev dev;
-	struct bme280_data comp_data;
-	int8_t rslt;
-	dev.dev_id = BME280_I2C_ADDR_PRIM;
-	dev.intf = BME280_I2C_INTF;
-	dev.read = user_i2c_read;
-	dev.write = user_i2c_write;
-	dev.delay_ms = user_delay_ms;
-
-	rslt = bme280_init(&dev);
-
-	dev.settings.osr_h = BME280_OVERSAMPLING_1X;
-	dev.settings.osr_p = BME280_OVERSAMPLING_16X;
-	dev.settings.osr_t = BME280_OVERSAMPLING_2X;
-	dev.settings.filter = BME280_FILTER_COEFF_16;
-	rslt = bme280_set_sensor_settings(
-			BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL
-					| BME280_FILTER_SEL, &dev);
-	rslt = bme280_set_sensor_mode(BME280_NORMAL_MODE, &dev); //BME280_FORCED_MODE
-			dev.delay_ms(40);
-	/**************/
-
-	/****CCS811****/
-	//Init_I2C_CCS811(hi2c1);
-	//configureCCS811();
-	//restore_Baseline(); // TODO
-	//softRest();
-
-	/**************/
 
 	/*WTHSTATION*/
 	Display display = Display(&hi2c1, 128, 64);
@@ -393,60 +220,7 @@ int main(void) {
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	unsigned long n = 0;
-	char tmp[50];
-	uint8_t pos_x = 7;
-	uint8_t pos_y = 13;
-	uint8_t dir_x = 1;
-	uint8_t dir_y = 1;
-
-
 	while (1) {
-		readAlgorithmResults();
-		unsigned int co2 = getCO2();
-
-		unsigned int baseline = getBaseline();
-
-
-		rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
-		if (rslt == BME280_OK) {
-			temperature = comp_data.temperature / 100.0; /* °C  */
-			temperature -= 4; // TODO compensate
-			humidity = comp_data.humidity / 1024.0; /* %   */
-			pressure = comp_data.pressure / 10000.0; /* hPa */
-
-
-			setEnvironmentalData(humidity, temperature);
-		}
-
-		HAL_Delay(500);
-		u8g2_ClearBuffer(&u8g2);
-		//u8g2_ClearDisplay(&u8g2);
-		u8g2_SetFont(&u8g2, u8g2_font_fur11_tf);
-		snprintf(tmp, 50, "%u %u, %x", number_of_starts, co2, baseline);
-		u8g2_DrawStr(&u8g2, 0, 20, tmp);
-		snprintf(tmp, 50, "H: %03.1f%%", humidity);
-		u8g2_DrawStr(&u8g2, 0, 40, tmp);
-		snprintf(tmp, 50, "T: %03.1f", temperature);
-		u8g2_DrawStr(&u8g2, 0, 60, tmp);
-		//u8g2_SetDrawColor(&u8g2, 0);
-		u8g2_DrawBox(&u8g2, pos_x, pos_y, 5, 5);
-		//u8g2_SetDrawColor(&u8g2, 0);
-		//u8g2_DrawBox(&u8g2, pos_x, pos_y, 3, 3);
-		//u8g2_SetDrawColor(&u8g2, 1);
-		pos_x += dir_x;
-		pos_y += dir_y;
-			// TODO DEBUG level 0 and -02
-		if (pos_x >= 123 || pos_x <= 0) {
-			dir_x = -dir_x;
-		}
-		if (pos_y >= 59 || pos_y <= 0) {
-			dir_y = -dir_y;
-		}
-
-		//u8g2_DrawStr(&u8g2, 0, n % 88, tmp);
-		u8g2_SendBuffer(&u8g2);
-		n += 1;
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */

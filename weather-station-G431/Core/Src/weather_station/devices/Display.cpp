@@ -6,6 +6,7 @@
  */
 
 #include "Display.h"
+#include <inttypes.h>
 
 namespace display {
 I2C_HandleTypeDef *hi2c;
@@ -137,7 +138,7 @@ void Display::update_display() {
 
 	//TODO u8g2_DrawBox(&u8g2, point_x, point_y, point_size, point_size);
 	char tmp[50];
-	snprintf(tmp, 50, "%u, %x", weather_data.co2, weather_data.baseline);
+	snprintf(tmp, 50, "%u, %x %u", weather_data.co2, weather_data.baseline, number_of_starts);
 	u8g2_DrawStr(&u8g2, 0, 20, tmp);
 	snprintf(tmp, 50, "H: %03.1f%%", weather_data.humidity);
 	u8g2_DrawStr(&u8g2, 0, 40, tmp);
@@ -157,8 +158,9 @@ void Display::update_display() {
 	}
 }
 
-void Display::update_data(WeatherData _weather_data) {
+void Display::update_data(WeatherData _weather_data, uint32_t _number_of_starts) {
 	weather_data = _weather_data;
+	number_of_starts = _number_of_starts;
 }
 
 

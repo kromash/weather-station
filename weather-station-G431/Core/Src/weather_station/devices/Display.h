@@ -31,6 +31,7 @@ struct WeatherData {
 
 class Display {
 private:
+	uint32_t number_of_starts;
 	WeatherData weather_data;
 	int point_x, point_y, dir_x, dir_y;
 	int width, heigth;
@@ -42,7 +43,7 @@ public:
 	Display(I2C_HandleTypeDef *hi2c, int width, int heigth);
 
 	void update_display();
-	void update_data(WeatherData _weather_data);
+	void update_data(WeatherData _weather_data, uint32_t _number_of_starts);
 	virtual ~Display();
 
 };
