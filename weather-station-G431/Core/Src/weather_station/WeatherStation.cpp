@@ -64,11 +64,11 @@ void WeatherStation::init_bme280() {
 
 	dev.settings.osr_h = BME280_OVERSAMPLING_1X;
 	dev.settings.osr_p = BME280_OVERSAMPLING_16X;
-	dev.settings.osr_t = BME280_OVERSAMPLING_2X;
+	dev.settings.osr_t = BME280_OVERSAMPLING_4X;
+	dev.settings.standby_time = BME280_STANDBY_TIME_500_MS;
 	dev.settings.filter = BME280_FILTER_COEFF_16;
 	rslt = bme280_set_sensor_settings(
-			BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL
-					| BME280_FILTER_SEL, &dev);
+			BME280_ALL_SETTINGS_SEL, &dev);
 	rslt = bme280_set_sensor_mode(BME280_NORMAL_MODE, &dev); //BME280_FORCED_MODE
 	dev.delay_ms(40);
 }
@@ -102,7 +102,7 @@ void WeatherStation::run() {
 		//weather_data.temperature=30;
 		display.update_data(weather_data);
 		display.update_display();
-		HAL_Delay(1000);
+		HAL_Delay(100);
 
 	}
 }

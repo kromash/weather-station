@@ -31,7 +31,7 @@ uint8_t dtvalue = 0;
 uint8_t appStart = 0;
 uint32_t ELBaseline_period = 0;
 uint32_t ALBaseline_period = 0;
-uint8_t Mode_CCS811 = 1;
+uint8_t Mode_CCS811 = 2; //2 - every 10 seconds
 float relativeHumidity = 65.0, temperature = 25.0;
 
 /**
@@ -142,7 +142,7 @@ void configureCCS811() {
 	//readHumidity();
 	//readTemperature();
 	// TODO
-	setEnvironmentalData(20.5, 23);
+	setEnvironmentalData(25.5, 23);
 
 	RunIn_Time_Complete= BURN_IN_TIME_ADDRESS;
 	BurnIn_Time_Complete = BURN_IN_TIME_ADDRESS_VAL;
